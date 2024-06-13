@@ -55,13 +55,9 @@ void Ekf::controlOpticalFlowFusion(const imuSample &imu_delayed)
 					       && !_flow_sample_delayed.flow_rate.longerThan(_flow_max_rate);
 		const bool is_tilt_good = (_R_to_earth(2, 2) > _params.range_cos_max_tilt);
 
-		// don't enforce this condition if terrain estimate is not valid as we have logic below to coast through bad range finder data
-		const bool is_within_max_sensor_dist = isTerrainEstimateValid() ? (_terrain_vpos - _state.pos(2) <= _flow_max_distance) : true;
-
 		if (is_quality_good
 		    && is_magnitude_good
-		    && is_tilt_good
-		    && is_within_max_sensor_dist) {
+		    && is_tilt_good) {
 			// compensate for body motion to give a LOS rate
 			calcOptFlowBodyRateComp(imu_delayed);
 			_flow_rate_compensated = _flow_sample_delayed.flow_rate - _flow_sample_delayed.gyro_rate.xy();
@@ -81,8 +77,11 @@ void Ekf::controlOpticalFlowFusion(const imuSample &imu_delayed)
 					&& (_control_status.flags.inertial_dead_reckoning // is doing inertial dead-reckoning so must constrain drift urgently
 					|| isOnlyActiveSourceOfHorizontalAiding(_control_status.flags.opt_flow));
 
+		const bool is_within_max_sensor_dist = getHagl() <= _flow_max_distance;
+
 		const bool continuing_conditions_passing = (_params.flow_ctrl == 1)
-							   && _control_status.flags.tilt_align;
+							   && _control_status.flags.tilt_align
+							   && is_within_max_sensor_dist;
 
 		const bool starting_conditions_passing = continuing_conditions_passing
 							 && isTimedOut(_aid_src_optical_flow.time_last_fuse, (uint64_t)2e6); // Prevent rapid switching

@@ -102,6 +102,7 @@ void Ekf::controlRangeHeightFusion()
 
 		const bool continuing_conditions_passing = ((_params.rng_ctrl == static_cast<int32_t>(RngCtrl::ENABLED))
 							    || (_params.rng_ctrl == static_cast<int32_t>(RngCtrl::CONDITIONAL)))
+							   && _control_status.flags.tilt_align
 							   && measurement_valid
 							   && _range_sensor.isDataHealthy()
 						           && _rng_consistency_check.isKinematicallyConsistent();
@@ -276,32 +277,30 @@ bool Ekf::isConditionalRangeAidSuitable()
 {
 #if defined(CONFIG_EKF2_TERRAIN)
 
-	if (_control_status.flags.in_air) {
-		// check if we can use range finder measurements to estimate height, use hysteresis to avoid rapid switching
-		// Note that the 0.7 coefficients and the innovation check are arbitrary values but work well in practice
-		float range_hagl_max = _params.max_hagl_for_range_aid;
-		float max_vel_xy = _params.max_vel_for_range_aid;
+	// check if we can use range finder measurements to estimate height, use hysteresis to avoid rapid switching
+	// Note that the 0.7 coefficients and the innovation check are arbitrary values but work well in practice
+	float range_hagl_max = _params.max_hagl_for_range_aid;
+	float max_vel_xy = _params.max_vel_for_range_aid;
 
-		const float hagl_test_ratio = _aid_src_rng_hgt.test_ratio;
+	const float hagl_test_ratio = _aid_src_rng_hgt.test_ratio;
 
-		bool is_hagl_stable = (hagl_test_ratio < 1.f);
+	bool is_hagl_stable = (hagl_test_ratio < 1.f);
 
-		if (!_control_status.flags.rng_hgt) {
-			range_hagl_max = 0.7f * _params.max_hagl_for_range_aid;
-			max_vel_xy = 0.7f * _params.max_vel_for_range_aid;
-			is_hagl_stable = (hagl_test_ratio < 0.01f);
-		}
-
-		const bool is_in_range = (getHagl() < range_hagl_max);
-
-		bool is_below_max_speed = true;
-
-		if (isHorizontalAidingActive()) {
-			is_below_max_speed = !_state.vel.xy().longerThan(max_vel_xy);
-		}
-
-		return is_in_range && is_hagl_stable && is_below_max_speed;
+	if (!_control_status.flags.rng_hgt) {
+		range_hagl_max = 0.7f * _params.max_hagl_for_range_aid;
+		max_vel_xy = 0.7f * _params.max_vel_for_range_aid;
+		is_hagl_stable = (hagl_test_ratio < 0.01f);
 	}
+
+	const bool is_in_range = (getHagl() < range_hagl_max);
+
+	bool is_below_max_speed = true;
+
+	if (isHorizontalAidingActive()) {
+		is_below_max_speed = !_state.vel.xy().longerThan(max_vel_xy);
+	}
+
+	return is_in_range && is_hagl_stable && is_below_max_speed;
 
 #endif // CONFIG_EKF2_TERRAIN
 

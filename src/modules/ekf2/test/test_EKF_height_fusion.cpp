@@ -60,6 +60,7 @@ public:
 	{
 		_ekf->init(0);
 		_ekf_wrapper.disableBaroHeightFusion();
+		_ekf_wrapper.disableRangeHeightFusion();
 		_sensor_simulator.runSeconds(0.1);
 		_ekf->set_in_air_status(false);
 		_ekf->set_vehicle_at_rest(true);
